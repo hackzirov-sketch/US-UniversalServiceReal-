@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="uz" data-theme="user">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>{{ title }} · UniversalService</title>
+  <link rel="stylesheet" href="{{ url_for('user_web.static', filename='user.css') }}">
+  <link rel="stylesheet" href="{{ url_for('user_web.static', filename='user-dark.css') }}">
+  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+  <script src="{{ url_for('user_web.static', filename='user.js') }}" defer></script>
+</head>
+<body data-view="{{ view }}">
+  <header class="titlebar"><div class="brand-mark">US</div><div><strong>UniversalService</strong><small>{{ title }}</small></div><span class="signal">ONLINE</span></header>
+  <main id="screen" class="screen" aria-live="polite"><section class="boot-panel"><div class="pixel-loader"></div><p>Telegram sessiyasi tekshirilmoqda…</p></section></main>
+  <nav class="dock" aria-label="Asosiy menyu">
+    <a class="{{ 'active' if current == '' }}" href="/app">⌂<span>Bosh</span></a>
+    <a class="{{ 'active' if current == 'stars' }}" href="/app/stars">★<span>Stars</span></a>
+    <a class="{{ 'active' if current == 'farm' }}" href="/app/farm">♣<span>Ferma</span></a>
+    <a class="{{ 'active' if current == 'balance' }}" href="/app/balance">▣<span>Hisob</span></a>
+    <a class="{{ 'active' if current == 'profile' }}" href="/app/profile">●<span>Profil</span></a>
+  </nav>
+</body></html>

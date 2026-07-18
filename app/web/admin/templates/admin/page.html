@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="uz" data-theme="admin">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>{{ title }} · UniversalService Admin</title>
+  <link rel="stylesheet" href="{{ url_for('admin_web.static', filename='admin.css') }}">
+  <link rel="stylesheet" href="{{ url_for('admin_web.static', filename='admin-dark.css') }}">
+  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+  <script src="{{ url_for('admin_web.static', filename='admin.js') }}" defer></script>
+</head>
+<body data-view="{{ view }}">
+  <aside class="sidebar"><div class="admin-brand"><span>US</span><strong>CONTROL<br>ROOM</strong></div><nav>
+    <a href="/admin">Dashboard</a><a href="/admin/payments">Cheklar</a><a href="/admin/orders">Orderlar</a><a href="/admin/pricing">Narxlar</a><a href="/admin/providers">Providerlar</a><a href="/admin/users">Userlar</a><a href="/admin/admins">Adminlar</a><a href="/admin/farm">Ferma</a><a href="/admin/bonuses">Bonuslar</a><a href="/admin/ranking">Reyting</a><a href="/admin/audit">Audit</a><a href="/admin/real-sales">Real savdo</a><a href="/admin/settings">Sozlamalar</a>
+  </nav></aside>
+  <div class="workspace"><header><div><small>UNIVERSALSERVICE / ADMIN</small><h1>{{ title }}</h1></div><span class="secure-lamp">SECURE</span></header><main id="admin-screen" aria-live="polite"><section class="terminal-card">Sessiya va permission tekshirilmoqda…</section></main></div>
+</body></html>

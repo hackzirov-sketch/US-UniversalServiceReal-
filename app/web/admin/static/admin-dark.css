@@ -1,0 +1,1 @@
+@media(prefers-color-scheme:dark){:root{--ink:#e8f2fa;--navy:#101b2a;--paper:#1a2b3d;--line:#080e16}body{background:#111e2a}table,.gate-item,.audit-line,input,select{background:#203449;color:var(--ink)}th{background:#29445d}}

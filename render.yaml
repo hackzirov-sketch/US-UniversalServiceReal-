@@ -1,0 +1,201 @@
+services:
+  - type: web
+    name: universalservice-web
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install --upgrade pip && pip install .
+    startCommand: sh bin/render-start.sh
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: universalservice-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: universalservice-redis
+          type: keyvalue
+          property: connectionString
+      - key: DATABASE_POOL_SIZE
+        value: "3"
+      - key: DATABASE_MAX_OVERFLOW
+        value: "2"
+      - key: MYXVEST_ENABLED
+        value: "true"
+      - key: MYXVEST_READ_ONLY_ENABLED
+        value: "true"
+      - key: MYXVEST_PURCHASE_ENABLED
+        value: "false"
+      - key: REAL_SALES_DEFAULT_ENABLED
+        value: "false"
+      - key: EXPECTED_ALEMBIC_HEAD
+        value: "20260718_0010"
+      - key: SECRET_KEY
+        sync: false
+      - key: SESSION_ENCRYPTION_KEY
+        sync: false
+      - key: PAYMENT_CARD_ENCRYPTION_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SUPERADMIN_IDS
+        sync: false
+      - key: INITIAL_ADMIN_IDS
+        sync: false
+      - key: MYXVEST_BASE_URL
+        sync: false
+      - key: MYXVEST_API_KEY
+        sync: false
+      - key: USER_WEBAPP_URL
+        sync: false
+      - key: ADMIN_WEBAPP_URL
+        sync: false
+      - key: PAYMENT_REVIEW_CHAT_ID
+        sync: false
+      - key: PAYMENT_REVIEW_NOTIFY_SUPERADMINS
+        value: "true"
+      - key: PAYMENT_REVIEW_NOTIFY_ADMINS
+        value: "true"
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: TRUSTED_HOSTS
+        sync: false
+      - key: BACKUP_VERIFIED_AT
+        sync: false
+      - key: SECRETS_ROTATED_AFTER_COMPROMISE
+        value: "false"
+
+  - type: worker
+    name: universalservice-bot
+    runtime: python
+    plan: starter
+    region: singapore
+    buildCommand: pip install --upgrade pip && pip install .
+    startCommand: python -m app.bot.main
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: universalservice-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: universalservice-redis
+          type: keyvalue
+          property: connectionString
+      - key: DATABASE_POOL_SIZE
+        value: "2"
+      - key: DATABASE_MAX_OVERFLOW
+        value: "1"
+      - key: MYXVEST_ENABLED
+        value: "true"
+      - key: MYXVEST_READ_ONLY_ENABLED
+        value: "true"
+      - key: MYXVEST_PURCHASE_ENABLED
+        value: "false"
+      - key: EXPECTED_ALEMBIC_HEAD
+        value: "20260718_0010"
+      - key: SECRET_KEY
+        sync: false
+      - key: SESSION_ENCRYPTION_KEY
+        sync: false
+      - key: PAYMENT_CARD_ENCRYPTION_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SUPERADMIN_IDS
+        sync: false
+      - key: INITIAL_ADMIN_IDS
+        sync: false
+      - key: MYXVEST_BASE_URL
+        sync: false
+      - key: MYXVEST_API_KEY
+        sync: false
+      - key: USER_WEBAPP_URL
+        sync: false
+      - key: ADMIN_WEBAPP_URL
+        sync: false
+      - key: PAYMENT_REVIEW_CHAT_ID
+        sync: false
+      - key: BACKUP_VERIFIED_AT
+        sync: false
+      - key: SECRETS_ROTATED_AFTER_COMPROMISE
+        value: "false"
+
+  - type: worker
+    name: universalservice-worker
+    runtime: python
+    plan: starter
+    region: singapore
+    buildCommand: pip install --upgrade pip && pip install .
+    startCommand: arq app.workers.settings.WorkerSettings
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: universalservice-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: universalservice-redis
+          type: keyvalue
+          property: connectionString
+      - key: DATABASE_POOL_SIZE
+        value: "3"
+      - key: DATABASE_MAX_OVERFLOW
+        value: "2"
+      - key: MYXVEST_ENABLED
+        value: "true"
+      - key: MYXVEST_READ_ONLY_ENABLED
+        value: "true"
+      - key: MYXVEST_PURCHASE_ENABLED
+        value: "false"
+      - key: EXPECTED_ALEMBIC_HEAD
+        value: "20260718_0010"
+      - key: SECRET_KEY
+        sync: false
+      - key: SESSION_ENCRYPTION_KEY
+        sync: false
+      - key: PAYMENT_CARD_ENCRYPTION_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SUPERADMIN_IDS
+        sync: false
+      - key: INITIAL_ADMIN_IDS
+        sync: false
+      - key: MYXVEST_BASE_URL
+        sync: false
+      - key: MYXVEST_API_KEY
+        sync: false
+      - key: PAYMENT_REVIEW_CHAT_ID
+        sync: false
+      - key: BACKUP_VERIFIED_AT
+        sync: false
+      - key: SECRETS_ROTATED_AFTER_COMPROMISE
+        value: "false"
+
+  - type: keyvalue
+    name: universalservice-redis
+    plan: free
+    region: singapore
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+    persistenceMode: "off"
+
+databases:
+  - name: universalservice-db
+    databaseName: universal_service
+    user: universal_service
+    plan: free
+    region: singapore
+    postgresMajorVersion: "17"
+    ipAllowList: []

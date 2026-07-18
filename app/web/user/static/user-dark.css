@@ -1,0 +1,1 @@
+@media(prefers-color-scheme:dark){:root{--ink:#eaf4ff;--paper:#17243b;--cream:#223552;--shadow:#09111e;--grid:rgba(255,255,255,.05)}html,body{background-color:#101b2d}.list-row,input,select{background:#1d304c;color:var(--ink)}.window-title{background:#315b87}.notice{background:#54471e}.hero{background:linear-gradient(135deg,#725f20,#713b50)}}
