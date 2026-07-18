@@ -58,13 +58,9 @@ services:
         sync: false
       - key: ADMIN_WEBAPP_URL
         sync: false
-      - key: PAYMENT_REVIEW_CHAT_ID
-        sync: false
       - key: CORS_ALLOWED_ORIGINS
         sync: false
       - key: TRUSTED_HOSTS
-        sync: false
-      - key: BACKUP_VERIFIED_AT
         sync: false
       - key: SECRETS_ROTATED_AFTER_COMPROMISE
         value: "false"
