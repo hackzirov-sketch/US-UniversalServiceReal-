@@ -96,7 +96,8 @@ card data into tickets. Check web, bot and ARQ logs separately.
 ## Free and paid resources
 
 - Free web is for testing. It sleeps after inactivity and has ephemeral filesystem.
-- Background workers do not support the free plan; Blueprint uses `starter` for bot and ARQ.
+- Background workers do not support the free plan. The checked-in free-test Blueprint omits Bot and
+  ARQ workers; add them back with `starter` or higher plans before production.
 - Free PostgreSQL has no backups and can expire; not suitable for sales production.
 - Free Key Value has no persistence; queued work can be lost after restart.
 - Production recommendation: paid web, workers, PostgreSQL with backups, and persistent Key Value.
