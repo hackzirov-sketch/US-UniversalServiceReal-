@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 import os
 import re
 
@@ -25,8 +27,18 @@ async def seed_primary_card() -> None:
         raise RuntimeError("PAYMENT_CARD_ENCRYPTION_KEY is required")
     if not settings.superadmin_ids:
         raise RuntimeError("At least one SUPERADMIN_ID is required")
-    card_number = re.sub(r"\D", "", os.environ.get("PRIMARY_CARD_NUMBER", ""))
-    card_holder = os.environ.get("PRIMARY_CARD_HOLDER", "")
+    encoded_payload = os.environ.get("PRIMARY_CARD_PAYLOAD_B64", "")
+    if encoded_payload:
+        try:
+            payload = json.loads(base64.b64decode(encoded_payload).decode("utf-8"))
+            card_number_input = str(payload["number"])
+            card_holder = str(payload["holder"])
+        except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+            raise RuntimeError("Primary card payload is invalid") from exc
+    else:
+        card_number_input = os.environ.get("PRIMARY_CARD_NUMBER", "")
+        card_holder = os.environ.get("PRIMARY_CARD_HOLDER", "")
+    card_number = re.sub(r"\D", "", card_number_input)
     if not card_number or not card_holder:
         raise RuntimeError("Primary card input is required")
     actor_id = min(settings.superadmin_ids)
