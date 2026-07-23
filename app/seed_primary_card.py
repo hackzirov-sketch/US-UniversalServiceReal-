@@ -3,9 +3,19 @@ from __future__ import annotations
 import asyncio
 import os
 
+from sqlalchemy import select
+
 from app.core.config import get_settings
+from app.db.models import PaymentCard
 from app.db.session import session_factory
-from app.services.payments import CardCipher, PaymentActor, create_primary_card
+from app.services.payments import (
+    CardCipher,
+    PaymentActor,
+    create_primary_card,
+    replace_primary_card_number,
+    set_primary_card_active,
+    update_primary_card_holder,
+)
 
 
 async def seed_primary_card() -> None:
@@ -22,16 +32,34 @@ async def seed_primary_card() -> None:
     actor = PaymentActor(actor_id, True, True)
     cipher = CardCipher(settings.payment_card_encryption_key.get_secret_value())
     async with session_factory.begin() as session:
-        await create_primary_card(
-            session,
-            card_number=card_number,
-            card_holder_name=card_holder,
-            min_topup_som=5_000,
-            max_topup_som=2_000_000,
-            actor=actor,
-            cipher=cipher,
+        existing = await session.scalar(
+            select(PaymentCard.id).where(PaymentCard.singleton_key == "PRIMARY")
         )
-    print("Primary payment card created securely")
+        if existing is None:
+            await create_primary_card(
+                session,
+                card_number=card_number,
+                card_holder_name=card_holder,
+                min_topup_som=5_000,
+                max_topup_som=2_000_000,
+                actor=actor,
+                cipher=cipher,
+            )
+        else:
+            await replace_primary_card_number(
+                session,
+                new_card_number=card_number,
+                actor=actor,
+                cipher=cipher,
+                confirmed=True,
+            )
+            await update_primary_card_holder(
+                session,
+                card_holder_name=card_holder,
+                actor=actor,
+            )
+            await set_primary_card_active(session, active=True, actor=actor)
+    print("Primary payment card stored securely")
 
 
 if __name__ == "__main__":
