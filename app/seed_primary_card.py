@@ -27,7 +27,10 @@ async def seed_primary_card() -> None:
         raise RuntimeError("PAYMENT_CARD_ENCRYPTION_KEY is required")
     if not settings.superadmin_ids:
         raise RuntimeError("At least one SUPERADMIN_ID is required")
+    raw_card_number = os.environ.get("PRIMARY_CARD_NUMBER", "")
     encoded_payload = os.environ.get("PRIMARY_CARD_PAYLOAD_B64", "")
+    if not encoded_payload and raw_card_number.startswith("b64:"):
+        encoded_payload = raw_card_number.removeprefix("b64:")
     if encoded_payload:
         try:
             payload = json.loads(base64.b64decode(encoded_payload).decode("utf-8"))
@@ -36,7 +39,7 @@ async def seed_primary_card() -> None:
         except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
             raise RuntimeError("Primary card payload is invalid") from exc
     else:
-        card_number_input = os.environ.get("PRIMARY_CARD_NUMBER", "")
+        card_number_input = raw_card_number
         card_holder = os.environ.get("PRIMARY_CARD_HOLDER", "")
     card_number = re.sub(r"\D", "", card_number_input)
     if not card_number or not card_holder:
