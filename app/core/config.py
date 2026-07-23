@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     secret_key: SecretStr | None = None
     session_encryption_key: SecretStr | None = None
+    render_external_url: str = ""
     user_webapp_url: str = ""
     admin_webapp_url: str = ""
     telegram_auth_max_age_seconds: int = Field(default=300, ge=60, le=3600)
@@ -108,6 +109,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_runtime_requirements(self) -> Settings:
+        if not self.user_webapp_url and self.render_external_url:
+            render_url = self.render_external_url.rstrip("/")
+            self.user_webapp_url = f"{render_url}/app"
         if self.is_production and not self.superadmin_ids:
             raise ValueError("SUPERADMIN_IDS must not be empty in production")
         if self.is_production:
