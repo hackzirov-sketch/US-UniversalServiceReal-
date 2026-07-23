@@ -70,22 +70,13 @@ class Settings(BaseSettings):
     initial_admin_ids: TelegramIds = frozenset()
     button_custom_emoji_ids: dict[str, str] = Field(default_factory=dict)
 
-    myxvest_base_url: str = ""
-    myxvest_api_key: SecretStr | None = None
-    myxvest_enabled: bool = False
-    myxvest_read_only_enabled: bool = True
-    myxvest_purchase_enabled: bool = False
-    myxvest_timeout_seconds: float = Field(default=20, gt=0, le=120)
-    myxvest_balance_sync_seconds: int = Field(default=60, ge=15)
-    myxvest_status_poll_seconds: int = Field(default=30, ge=10)
-    myxvest_quote_ttl_seconds: int = Field(default=300, ge=30)
-    myxvest_min_balance_alert_som: int = Field(default=50_000, ge=0)
-    myxvest_max_retries: int = Field(default=3, ge=1, le=8)
-    myxvest_max_concurrency: int = Field(default=5, ge=1, le=50)
+    direct_sales_enabled: bool = False
+    quote_ttl_seconds: int = Field(default=300, ge=30)
+
     pricing_requires_superadmin_approval: bool = False
     min_profit_percent: Decimal = Field(default=Decimal("0"), ge=0, le=1000)
     min_profit_som: int = Field(default=0, ge=0)
-    expected_alembic_head: str = "20260718_0010"
+    expected_alembic_head: str = "20260723_0011"
     backup_verified_at: datetime | None = None
     secrets_rotated_after_compromise: bool = False
     maintenance_mode: bool = False
@@ -126,13 +117,6 @@ class Settings(BaseSettings):
             ):
                 if secret is None or len(secret.get_secret_value()) < 32:
                     raise ValueError(f"{name} must contain at least 32 characters in production")
-        if self.myxvest_enabled:
-            if not self.myxvest_base_url.strip():
-                raise ValueError("MYXVEST_BASE_URL is required when Myxvest is enabled")
-            if self.myxvest_api_key is None or not self.myxvest_api_key.get_secret_value():
-                raise ValueError("MYXVEST_API_KEY is required when Myxvest is enabled")
-        if self.myxvest_purchase_enabled and not self.myxvest_enabled:
-            raise ValueError("MYXVEST_ENABLED must be true when purchases are enabled")
         return self
 
 

@@ -24,16 +24,12 @@ services:
         value: "3"
       - key: DATABASE_MAX_OVERFLOW
         value: "2"
-      - key: MYXVEST_ENABLED
-        value: "true"
-      - key: MYXVEST_READ_ONLY_ENABLED
-        value: "true"
-      - key: MYXVEST_PURCHASE_ENABLED
+      - key: DIRECT_SALES_ENABLED
         value: "false"
       - key: REAL_SALES_DEFAULT_ENABLED
         value: "false"
       - key: EXPECTED_ALEMBIC_HEAD
-        value: "20260718_0010"
+        value: "20260723_0011"
       - key: PAYMENT_REVIEW_NOTIFY_SUPERADMINS
         value: "true"
       - key: PAYMENT_REVIEW_NOTIFY_ADMINS
@@ -49,10 +45,6 @@ services:
       - key: SUPERADMIN_IDS
         sync: false
       - key: INITIAL_ADMIN_IDS
-        sync: false
-      - key: MYXVEST_BASE_URL
-        sync: false
-      - key: MYXVEST_API_KEY
         sync: false
       - key: USER_WEBAPP_URL
         sync: false

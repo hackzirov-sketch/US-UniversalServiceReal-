@@ -131,7 +131,7 @@ async def complete_order_funds(session: AsyncSession, *, order_id: str) -> Ledge
         created_at=datetime.now(UTC),
     )
     session.add(entry)
-    order_completion_total.labels(provider="MYXVEST").inc()
+    order_completion_total.labels(provider="DIRECT").inc()
     return entry
 
 
@@ -169,5 +169,5 @@ async def refund_order_funds(session: AsyncSession, *, order_id: str) -> LedgerE
         created_at=datetime.now(UTC),
     )
     session.add(entry)
-    refund_total.labels(provider="MYXVEST").inc()
+    refund_total.labels(provider="DIRECT").inc()
     return entry

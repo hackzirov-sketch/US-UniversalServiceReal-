@@ -1,4 +1,4 @@
-"""Initial commerce and Myxvest schema."""
+"""Initial commerce schema."""
 
 from alembic import op
 

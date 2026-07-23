@@ -41,7 +41,6 @@ BUTTON_SPECS = {
         ButtonSpec("orders", "📦 Buyurtmalarim", "📦"),
         ButtonSpec("profile", "👤 Profil", "👤"),
         ButtonSpec("help", "ℹ️ Yordam", "ℹ️"),
-        ButtonSpec("provider", "📊 Provider", "📊"),
         ButtonSpec("pricing", "💰 Narxlar", "💰"),
         ButtonSpec("payment_review", "🧾 To‘lov review", "🧾"),
         ButtonSpec("admin_orders", "📦 Buyurtmalar", "📦"),

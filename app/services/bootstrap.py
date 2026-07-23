@@ -10,7 +10,6 @@ async def bootstrap_defaults(
     *,
     initial_admin_ids: frozenset[int],
     superadmin_ids: frozenset[int],
-    myxvest_enabled: bool,
 ) -> None:
     admin_ids = initial_admin_ids | superadmin_ids
     existing_users = {}
@@ -43,11 +42,12 @@ async def bootstrap_defaults(
                 else AdminRole.ADMIN.value
             )
 
-    provider = await session.scalar(select(Provider).where(Provider.code == "MYXVEST"))
+    provider = await session.scalar(select(Provider).where(Provider.code == "DIRECT"))
     if provider is None:
-        session.add(Provider(code="MYXVEST", name="Myxvest", enabled=myxvest_enabled))
+        session.add(Provider(code="DIRECT", name="Direct fulfillment", enabled=False))
     else:
-        provider.enabled = myxvest_enabled
+        provider.name = "Direct fulfillment"
+        provider.enabled = False
 
     runtime_gate = await session.get(RuntimeSetting, "real_sales_enabled")
     if runtime_gate is None:

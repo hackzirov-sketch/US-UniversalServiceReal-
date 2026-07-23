@@ -9,7 +9,7 @@ from aiogram.types import Update
 
 from app.bot.admin_management import build_admin_management_router
 from app.bot.button_design_admin import build_button_design_router
-from app.bot.main import build_router
+from app.bot.main import build_operational_router
 from app.bot.menu import build_menu_router
 from app.bot.middleware import IdentityMiddleware
 from app.bot.payments import build_payment_router
@@ -17,17 +17,13 @@ from app.bot.pricing import build_pricing_router
 from app.bot.production import build_production_router
 from app.core.config import Settings
 from app.db.session import session_factory
-from app.integrations.providers.myxvest.client import MyxvestClient
 from app.services.button_design import load_button_design_cache
-from app.services.provider import ProviderWorkflow
 
 
 class TelegramWebhook:
     def __init__(self, settings: Settings) -> None:
         if settings.telegram_bot_token is None:
             raise RuntimeError("TELEGRAM_BOT_TOKEN is required")
-        if not settings.myxvest_enabled:
-            raise RuntimeError("MYXVEST_ENABLED must be true to run provider bot handlers")
 
         token = settings.telegram_bot_token.get_secret_value()
         secret_key = settings.secret_key
@@ -44,25 +40,13 @@ class TelegramWebhook:
         self.dispatcher.message.middleware(identity)
         self.dispatcher.callback_query.middleware(identity)
 
-        self.client = MyxvestClient(
-            base_url=settings.myxvest_base_url,
-            api_key=settings.myxvest_api_key.get_secret_value(),
-            timeout_seconds=settings.myxvest_timeout_seconds,
-            max_retries=settings.myxvest_max_retries,
-        )
-        workflow = ProviderWorkflow(
-            session_factory,
-            self.client,
-            purchase_enabled=settings.myxvest_purchase_enabled,
-            runtime_gate_required=True,
-        )
         self.dispatcher.include_router(build_menu_router())
         self.dispatcher.include_router(build_button_design_router())
         self.dispatcher.include_router(build_payment_router())
         self.dispatcher.include_router(build_pricing_router())
         self.dispatcher.include_router(build_admin_management_router())
-        self.dispatcher.include_router(build_production_router(workflow))
-        self.dispatcher.include_router(build_router(workflow))
+        self.dispatcher.include_router(build_operational_router())
+        self.dispatcher.include_router(build_production_router())
 
     async def start(self) -> None:
         async with session_factory() as session:
@@ -82,7 +66,6 @@ class TelegramWebhook:
 
     async def close(self) -> None:
         await self.dispatcher.emit_shutdown(bot=self.bot)
-        await self.client.aclose()
         await self.bot.session.close()
 
 

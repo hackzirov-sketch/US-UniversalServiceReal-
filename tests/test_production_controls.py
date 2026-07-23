@@ -328,10 +328,7 @@ async def test_preflight_checks_complete_production_dependencies(sessions) -> No
         database_url="sqlite+aiosqlite://",
         superadmin_ids=str(SUPERADMIN_ID),
         payment_review_chat_id=-100123,
-        myxvest_enabled=True,
-        myxvest_purchase_enabled=True,
-        myxvest_base_url="https://provider.invalid",
-        myxvest_api_key="test-key",
+        direct_sales_enabled=True,
         expected_alembic_head="head-for-test",
         backup_verified_at=now,
         secrets_rotated_after_compromise=True,
@@ -339,8 +336,8 @@ async def test_preflight_checks_complete_production_dependencies(sessions) -> No
     async with sessions.begin() as session:
         admin = User(telegram_id=SUPERADMIN_ID, is_admin=True, role="SUPERADMIN")
         provider = Provider(
-            code="MYXVEST",
-            name="Myxvest",
+            code="DIRECT",
+            name="Direct fulfillment",
             enabled=True,
             status=ProviderState.AVAILABLE,
         )
@@ -356,11 +353,11 @@ async def test_preflight_checks_complete_production_dependencies(sessions) -> No
             )
         )
         keys = [
-            ("MYXVEST:STARS", ServiceType.STARS, 1),
-            ("MYXVEST:PREMIUM:3", ServiceType.PREMIUM, 2),
-            ("MYXVEST:PREMIUM:6", ServiceType.PREMIUM, 3),
-            ("MYXVEST:PREMIUM:12", ServiceType.PREMIUM, 4),
-            ("MYXVEST:GIFT:test", ServiceType.GIFT, 5),
+            ("DIRECT:STARS", ServiceType.STARS, 1),
+            ("DIRECT:PREMIUM:3", ServiceType.PREMIUM, 2),
+            ("DIRECT:PREMIUM:6", ServiceType.PREMIUM, 3),
+            ("DIRECT:PREMIUM:12", ServiceType.PREMIUM, 4),
+            ("DIRECT:GIFT:test", ServiceType.GIFT, 5),
         ]
         session.add_all(
             ManualProviderPrice(
@@ -387,9 +384,7 @@ async def test_preflight_checks_complete_production_dependencies(sessions) -> No
             infrastructure={
                 "migration_head": True,
                 "redis": True,
-                "worker": True,
                 "telegram": True,
-                "provider_balance": True,
                 "topup_approval": True,
                 "ledger": True,
             },

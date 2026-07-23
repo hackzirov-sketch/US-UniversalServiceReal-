@@ -105,7 +105,7 @@ async def quote(body: QuoteBody, request: Request):
                 quantity=body.quantity,
                 premium_months=price.premium_months,
                 gift_name=price.gift_name,
-                quote_ttl_seconds=get_settings().myxvest_quote_ttl_seconds,
+                quote_ttl_seconds=get_settings().quote_ttl_seconds,
             )
             if row.manual_price_id != price.id:
                 raise ManualPricingError("Tanlangan narx eskirgan")

@@ -17,19 +17,15 @@ from app.db.models import (
     FarmReward,
     Order,
     Payment,
-    Provider,
-    ProviderBalanceSnapshot,
     User,
 )
 from app.db.session import session_factory
-from app.integrations.providers.myxvest.client import MyxvestClient
 from app.services.admin import (
     AdminActionError,
     add_admin,
     list_admin_cards,
     remove_admin,
     replace_admin_permissions,
-    set_provider_enabled,
 )
 from app.services.audit import audit_text, list_business_audit
 from app.services.farm import FarmError, reverse_reward
@@ -135,11 +131,6 @@ async def dashboard(request: Request):
             )
             or 0
         )
-        provider_balance = await session.scalar(
-            select(ProviderBalanceSnapshot.balance_som)
-            .order_by(ProviderBalanceSnapshot.fetched_at.desc())
-            .limit(1)
-        )
         audit = list(
             await session.scalars(select(AuditLog).order_by(AuditLog.created_at.desc()).limit(8))
         )
@@ -149,7 +140,6 @@ async def dashboard(request: Request):
         "orders": order_count,
         "users": users,
         "expected_profit_som": expected_profit,
-        "provider_balance_som": provider_balance,
         "audit": [audit_text(row) for row in audit],
     }
 
@@ -425,43 +415,6 @@ async def pricing_deactivate(price_id: str, body: ToggleBody, request: Request):
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
 
 
-@router.get("/providers")
-async def providers(request: Request):
-    await require_admin(request, "MANAGE_PROVIDER")
-    async with session_factory() as session:
-        rows = list(await session.scalars(select(Provider).order_by(Provider.name)))
-    return {
-        "items": [
-            {
-                "code": row.code,
-                "name": row.name,
-                "enabled": row.enabled,
-                "status": row.status.value,
-                "last_sync": row.last_balance_sync_at.isoformat()
-                if row.last_balance_sync_at
-                else None,
-            }
-            for row in rows
-        ]
-    }
-
-
-@router.post("/providers/myxvest/toggle")
-async def provider_toggle(body: ToggleBody, request: Request):
-    context = await require_admin(request, "MANAGE_PROVIDER")
-    verify_csrf(request, context)
-    if not body.confirm:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Ikkinchi tasdiq kerak")
-    try:
-        async with session_factory.begin() as session:
-            await set_provider_enabled(
-                session, enabled=body.enabled, actor_telegram_id=context.user.telegram_id
-            )
-        return {"enabled": body.enabled}
-    except AdminActionError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
-
-
 @router.get("/users")
 async def users(request: Request):
     await require_admin(request, "VIEW_USERS")
@@ -592,9 +545,9 @@ async def real_sales(request: Request):
     async with session_factory() as session:
         runtime = await runtime_sales_enabled(session)
     return {
-        "environment_gate": get_settings().myxvest_purchase_enabled,
+        "environment_gate": get_settings().direct_sales_enabled,
         "runtime_gate": runtime,
-        "effective": get_settings().myxvest_purchase_enabled and runtime,
+        "effective": get_settings().direct_sales_enabled and runtime,
     }
 
 
@@ -609,7 +562,7 @@ async def real_sales_toggle(body: ToggleBody, request: Request):
             status.HTTP_403_FORBIDDEN if not context.is_superadmin else status.HTTP_409_CONFLICT,
             "Superadmin va ikkinchi tasdiq kerak",
         )
-    if body.enabled and not get_settings().myxvest_purchase_enabled:
+    if body.enabled and not get_settings().direct_sales_enabled:
         raise HTTPException(status.HTTP_409_CONFLICT, "Environment purchase gate o‘chiq")
     async with session_factory.begin() as session:
         await set_runtime_sales(
@@ -617,7 +570,7 @@ async def real_sales_toggle(body: ToggleBody, request: Request):
             enabled=body.enabled,
             actor_telegram_id=context.user.telegram_id,
             superadmin_ids=get_settings().superadmin_ids,
-            environment_enabled=get_settings().myxvest_purchase_enabled,
+            environment_enabled=get_settings().direct_sales_enabled,
         )
     return {"runtime_gate": body.enabled}
 
@@ -639,13 +592,10 @@ async def preflight(request: Request):
 
 async def _infrastructure_probes() -> dict[str, bool]:
     settings = get_settings()
-    probes = {"redis": False, "worker": False, "telegram": False, "provider_balance": False}
+    probes = {"redis": False, "telegram": False}
     redis_client = from_url(settings.redis_url, decode_responses=True)
     try:
         probes["redis"] = bool(await redis_client.ping())
-        async for _key in redis_client.scan_iter(match="*health-check*", count=20):
-            probes["worker"] = True
-            break
     except Exception as exc:
         logger.warning("Web preflight Redis probe failed: %s", type(exc).__name__)
     finally:
@@ -659,18 +609,4 @@ async def _infrastructure_probes() -> dict[str, bool]:
             logger.warning("Web preflight Telegram probe failed: %s", type(exc).__name__)
         finally:
             await bot.session.close()
-    if settings.myxvest_enabled and settings.myxvest_api_key is not None:
-        client = MyxvestClient(
-            base_url=settings.myxvest_base_url,
-            api_key=settings.myxvest_api_key.get_secret_value(),
-            timeout_seconds=settings.myxvest_timeout_seconds,
-            max_retries=settings.myxvest_max_retries,
-        )
-        try:
-            await client.get_balance()
-            probes["provider_balance"] = True
-        except Exception as exc:
-            logger.warning("Web preflight provider probe failed: %s", type(exc).__name__)
-        finally:
-            await client.aclose()
     return probes

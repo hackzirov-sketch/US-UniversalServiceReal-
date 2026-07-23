@@ -36,10 +36,6 @@ def test_production_requires_superadmin() -> None:
         Settings(_env_file=None, app_env="production", superadmin_ids="")
 
 
-def test_enabled_provider_requires_secret() -> None:
-    with pytest.raises(ValidationError, match="MYXVEST_API_KEY"):
-        Settings(
-            _env_file=None,
-            myxvest_enabled=True,
-            myxvest_base_url="https://provider.invalid",
-        )
+def test_direct_sales_does_not_require_provider_secret() -> None:
+    settings = Settings(_env_file=None, direct_sales_enabled=True)
+    assert settings.direct_sales_enabled

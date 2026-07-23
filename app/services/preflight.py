@@ -9,14 +9,13 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.db.enums import ManualPriceStatus, OrderStatus, ProviderState
+from app.db.enums import ManualPriceStatus, OrderStatus
 from app.db.models import (
     LedgerEntry,
     ManualProviderPrice,
     Order,
     PaymentCard,
     PreflightResult,
-    Provider,
     RuntimeSetting,
     User,
 )
@@ -82,11 +81,6 @@ async def run_preflight(
         "Redis PONG" if probes.get("redis") else "Redis unavailable",
     )
     add(
-        "worker",
-        probes.get("worker", False),
-        "ARQ worker heartbeat" if probes.get("worker") else "Worker heartbeat missing",
-    )
-    add(
         "telegram",
         probes.get("telegram", False),
         "Bot token valid" if probes.get("telegram") else "Bot token not verified",
@@ -130,38 +124,20 @@ async def run_preflight(
             )
         )
     )
-    add("stars_price", "MYXVEST:STARS" in active_keys, "active manual Stars price")
-    premium_ok = all(f"MYXVEST:PREMIUM:{months}" in active_keys for months in (3, 6, 12))
+    add("stars_price", "DIRECT:STARS" in active_keys, "active manual Stars price")
+    premium_ok = all(f"DIRECT:PREMIUM:{months}" in active_keys for months in (3, 6, 12))
     add("premium_prices", premium_ok, "3/6/12 month package prices")
     add(
         "gift_prices",
-        any(key.startswith("MYXVEST:GIFT:") for key in active_keys),
+        any(key.startswith("DIRECT:GIFT:") for key in active_keys),
         "at least one active Gift",
     )
 
-    provider = await session.scalar(select(Provider).where(Provider.code == "MYXVEST"))
-    provider_ok = bool(provider and provider.enabled and provider.status == ProviderState.AVAILABLE)
-    add(
-        "provider", provider_ok, "Myxvest available" if provider_ok else "Myxvest disabled/degraded"
-    )
-    add(
-        "provider_api_key",
-        bool(settings.myxvest_api_key),
-        "configured" if settings.myxvest_api_key else "missing",
-    )
-    add(
-        "provider_balance",
-        probes.get("provider_balance", False),
-        "read-only balance verified" if probes.get("provider_balance") else "balance not verified",
-    )
-    purchase_client = bool(
-        settings.myxvest_enabled and settings.myxvest_base_url.strip() and settings.myxvest_api_key
-    )
-    add("purchase_client", purchase_client, "configured" if purchase_client else "incomplete")
+    add("direct_fulfillment", True, "external provider disabled")
     add(
         "environment_gate",
-        settings.myxvest_purchase_enabled,
-        f"MYXVEST_PURCHASE_ENABLED={settings.myxvest_purchase_enabled}",
+        settings.direct_sales_enabled,
+        f"DIRECT_SALES_ENABLED={settings.direct_sales_enabled}",
     )
 
     ledger_bad = int(
@@ -212,8 +188,6 @@ async def run_preflight(
         not settings.maintenance_mode,
         "off" if not settings.maintenance_mode else "maintenance mode enabled",
     )
-    add("circuit_breaker", provider_ok, "closed" if provider_ok else "provider circuit unavailable")
-
     success = all(result["ok"] for result in checks.values())
     expires_at = current + PREFLIGHT_TTL
     result = PreflightResult(
@@ -254,7 +228,7 @@ async def set_runtime_sales(
         await session.flush()
     if enabled:
         if not environment_enabled:
-            raise SalesGateError("MYXVEST_PURCHASE_ENABLED=false")
+            raise SalesGateError("DIRECT_SALES_ENABLED=false")
         valid = await session.scalar(
             select(PreflightResult.id)
             .where(PreflightResult.success.is_(True), PreflightResult.expires_at > current)

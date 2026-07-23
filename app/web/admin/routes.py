@@ -13,7 +13,6 @@ ADMIN_PAGES = {
     "payments": ("Chek arizalari", "payments"),
     "orders": ("Buyurtmalar", "orders"),
     "pricing": ("Narxlar", "pricing"),
-    "providers": ("Providerlar", "providers"),
     "users": ("Foydalanuvchilar", "users"),
     "admins": ("Adminlar", "admins"),
     "farm": ("Ferma nazorati", "farm"),

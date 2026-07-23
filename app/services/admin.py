@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.enums import AdminRole, OrderStatus, PaymentStatus, ProviderState, ServiceType
+from app.db.enums import AdminRole, PaymentStatus, ServiceType
 from app.db.models import (
     AdminPermission,
     AuditLog,
@@ -15,7 +15,6 @@ from app.db.models import (
     ProviderService,
     User,
 )
-from app.domain.state_machine import transition
 from app.services.audit import write_audit
 from app.services.balance import refund_order_funds
 
@@ -339,26 +338,6 @@ async def admin_recipients(
     return frozenset(admin_ids | set(superadmin_ids))
 
 
-async def set_provider_enabled(
-    session: AsyncSession, *, enabled: bool, actor_telegram_id: int
-) -> None:
-    provider = await session.scalar(
-        select(Provider).where(Provider.code == "MYXVEST").with_for_update()
-    )
-    if provider is None:
-        raise AdminActionError("Provider not found")
-    provider.enabled = enabled
-    provider.status = ProviderState.AVAILABLE if enabled else ProviderState.DISABLED
-    write_audit(
-        session,
-        actor_type="SUPERADMIN",
-        actor_id=str(actor_telegram_id),
-        action="PROVIDER_ENABLED" if enabled else "PROVIDER_DISABLED",
-        entity_type="PROVIDER",
-        entity_id=provider.id,
-    )
-
-
 async def set_service_type_enabled(
     session: AsyncSession,
     *,
@@ -366,7 +345,7 @@ async def set_service_type_enabled(
     enabled: bool,
     actor_telegram_id: int,
 ) -> int:
-    provider = await session.scalar(select(Provider).where(Provider.code == "MYXVEST"))
+    provider = await session.scalar(select(Provider).where(Provider.code == "DIRECT"))
     if provider is None:
         raise AdminActionError("Provider not found")
     result = await session.execute(
@@ -409,37 +388,6 @@ async def set_order_priority(
         entity_id=order.id,
         old_values={"priority": before},
         new_values={"priority": priority},
-    )
-
-
-async def approve_safe_price_changed_order(
-    session: AsyncSession, *, public_number: str, actor_telegram_id: int
-) -> None:
-    order = await session.scalar(
-        select(Order).where(Order.public_order_number == public_number).with_for_update()
-    )
-    if order is None or order.internal_status != OrderStatus.PRICE_CHANGED:
-        raise AdminActionError("PRICE_CHANGED order not found")
-    service = await session.scalar(
-        select(ProviderService).where(
-            ProviderService.provider_id == order.provider_id,
-            ProviderService.external_service_id == order.external_service_id,
-        )
-    )
-    if service is None or service.provider_price_som is None:
-        raise AdminActionError("Current provider price is unavailable")
-    if service.provider_price_som > order.sale_price_som:
-        raise AdminActionError("Current sale price would create a loss; collect payment or refund")
-    order.provider_cost_som = service.provider_price_som
-    order.expected_profit_som = order.sale_price_som - service.provider_price_som
-    order.internal_status = transition(order.internal_status, OrderStatus.AWAITING_PROVIDER_FUNDING)
-    write_audit(
-        session,
-        actor_type="ADMIN",
-        actor_id=str(actor_telegram_id),
-        action="PRICE_UPDATED",
-        entity_type="ORDER",
-        entity_id=order.id,
     )
 
 

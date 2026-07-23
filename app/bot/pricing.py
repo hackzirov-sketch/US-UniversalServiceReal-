@@ -178,7 +178,7 @@ def build_pricing_router() -> Router:
         await state.clear()
         await state.update_data(service_type=ServiceType.GIFT.value)
         await state.set_state(PricingStates.gift_name)
-        await _answer(callback, "Myxvest’ga yuboriladigan aniq gift_name ni kiriting:")
+        await _answer(callback, "Telegram sovg‘asining aniq nomini kiriting:")
 
     @router.message(PricingStates.gift_name)
     async def gift_name(message: Message, state: FSMContext) -> None:

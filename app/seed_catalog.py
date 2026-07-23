@@ -91,7 +91,6 @@ async def seed_catalog() -> tuple[int, int]:
             session,
             initial_admin_ids=settings.initial_admin_ids,
             superadmin_ids=settings.superadmin_ids,
-            myxvest_enabled=settings.myxvest_enabled,
         )
         await session.flush()
         for price_input in catalog_prices():

@@ -5,12 +5,11 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import select
 
-from app.db.enums import ManualPriceStatus, OrderStatus, PriceSource, ProviderState, ServiceType
+from app.db.enums import ManualPriceStatus, PriceSource, ProviderState, ServiceType
 from app.db.models import (
     AdminPermission,
     AuditLog,
     ManualProviderPrice,
-    Order,
     PricingRule,
     Provider,
     ProviderService,
@@ -29,13 +28,15 @@ from app.services.manual_pricing import (
     list_active_manual_prices,
     pricing_actor,
 )
-from app.services.provider import ProviderWorkflow
 
 
 async def seed_pricing(sessions, *, with_api_stars: bool = False):
     async with sessions.begin() as session:
         provider = Provider(
-            code="MYXVEST", name="Myxvest", enabled=True, status=ProviderState.AVAILABLE
+            code="DIRECT",
+            name="Direct fulfillment",
+            enabled=False,
+            status=ProviderState.DISABLED,
         )
         user = User(telegram_id=10001, available_balance_som=1_000_000)
         admin = User(telegram_id=20001, is_admin=True)
@@ -82,7 +83,7 @@ def stars_input(**changes) -> ManualPriceInput:
         "min_quantity": 50,
         "max_quantity": 10_000,
         "duration_hours": 24,
-        "source_note": "Original Myxvest bot",
+        "source_note": "Official Telegram price",
     }
     values.update(changes)
     return ManualPriceInput(**values)
@@ -105,7 +106,7 @@ async def test_superadmin_creates_stars_price_and_audit(sessions) -> None:
     await seed_pricing(sessions)
     async with sessions.begin() as session:
         price = await save_price(session, stars_input())
-        assert price.service_key == "MYXVEST:STARS"
+        assert price.service_key == "DIRECT:STARS"
         assert price.version == 1
         assert price.status == ManualPriceStatus.ACTIVE
     async with sessions() as session:
@@ -181,9 +182,9 @@ async def test_premium_packages_have_separate_prices(sessions) -> None:
     async with sessions() as session:
         keys = set(await session.scalars(select(ManualProviderPrice.service_key)))
         assert keys == {
-            "MYXVEST:PREMIUM:3",
-            "MYXVEST:PREMIUM:6",
-            "MYXVEST:PREMIUM:12",
+            "DIRECT:PREMIUM:3",
+            "DIRECT:PREMIUM:6",
+            "DIRECT:PREMIUM:12",
         }
 
 
@@ -281,45 +282,6 @@ async def test_low_profit_admin_price_becomes_draft(sessions) -> None:
         )
         assert price.status == ManualPriceStatus.DRAFT
         assert price.active is False
-
-
-class NeverPurchaseClient:
-    purchase_calls = 0
-
-    async def buy_stars(self, _request):
-        self.purchase_calls += 1
-        raise AssertionError("purchase client must not be called")
-
-
-@pytest.mark.asyncio
-async def test_purchase_flag_false_never_calls_provider(sessions) -> None:
-    provider_id, user_id, _ = await seed_pricing(sessions)
-    async with sessions.begin() as session:
-        order = Order(
-            public_order_number="GATE-1",
-            user_id=user_id,
-            provider_id=provider_id,
-            service_type=ServiceType.STARS,
-            target_username_original="@valid_user",
-            target_username="valid_user",
-            external_service_id="buy_stars",
-            quantity=50,
-            provider_cost_som=9_450,
-            sale_price_som=10_500,
-            reserved_amount_som=10_500,
-            expected_profit_som=1_050,
-            quote_expires_at=datetime.now(UTC) + timedelta(minutes=5),
-            internal_status=OrderStatus.READY_TO_SUBMIT,
-            idempotency_key="ute:gate:myxvest:submit:v1",
-        )
-        session.add(order)
-        await session.flush()
-        order_id = order.id
-    client = NeverPurchaseClient()
-    await ProviderWorkflow(sessions, client, purchase_enabled=False).submit_order(order_id)
-    assert client.purchase_calls == 0
-    async with sessions() as session:
-        assert (await session.get(Order, order_id)).internal_status == OrderStatus.READY_TO_SUBMIT
 
 
 @pytest.mark.asyncio

@@ -48,7 +48,7 @@ class PriceTemporarilyUnavailableError(ManualPricingError):
 
 
 class PurchaseDisabledError(ManualPricingError):
-    code = "MYXVEST_PURCHASE_DISABLED"
+    code = "DIRECT_SALES_DISABLED"
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,10 +161,10 @@ def gift_service_slug(value: str) -> str:
 
 def service_key_for(data: ManualPriceInput) -> str:
     if data.service_type == ServiceType.STARS:
-        return "MYXVEST:STARS"
+        return "DIRECT:STARS"
     if data.service_type == ServiceType.PREMIUM:
-        return f"MYXVEST:PREMIUM:{data.premium_months}"
-    return f"MYXVEST:GIFT:{gift_service_slug(data.gift_name or '')}"
+        return f"DIRECT:PREMIUM:{data.premium_months}"
+    return f"DIRECT:GIFT:{gift_service_slug(data.gift_name or '')}"
 
 
 def validate_price_input(data: ManualPriceInput) -> None:
@@ -264,10 +264,10 @@ async def create_manual_price(
     )
     current_time = now or datetime.now(UTC)
     provider = await session.scalar(
-        select(Provider).where(Provider.code == "MYXVEST").with_for_update()
+        select(Provider).where(Provider.code == "DIRECT").with_for_update()
     )
     if provider is None:
-        raise ManualPriceValidationError("MYXVEST provider is not configured")
+        raise ManualPriceValidationError("Direct fulfillment is not configured")
     service_key = service_key_for(data)
     previous = await session.scalar(
         select(ManualProviderPrice)
@@ -445,7 +445,7 @@ async def create_price_quote(
     now: datetime | None = None,
 ) -> PriceQuote:
     current_time = now or datetime.now(UTC)
-    provider = await session.scalar(select(Provider).where(Provider.code == "MYXVEST"))
+    provider = await session.scalar(select(Provider).where(Provider.code == "DIRECT"))
     if provider is None:
         raise PriceTemporarilyUnavailableError("Provider is unavailable")
     lookup = _lookup_service_key(service_type, premium_months, gift_name)
@@ -639,12 +639,12 @@ def _lookup_service_key(
     service_type: ServiceType, premium_months: int | None, gift_name: str | None
 ) -> str:
     if service_type == ServiceType.STARS:
-        return "MYXVEST:STARS"
+        return "DIRECT:STARS"
     if service_type == ServiceType.PREMIUM:
         if premium_months not in PREMIUM_MONTHS:
             raise ManualPriceValidationError("Premium months must be 3, 6 or 12")
-        return f"MYXVEST:PREMIUM:{premium_months}"
-    return f"MYXVEST:GIFT:{gift_service_slug(gift_name or '')}"
+        return f"DIRECT:PREMIUM:{premium_months}"
+    return f"DIRECT:GIFT:{gift_service_slug(gift_name or '')}"
 
 
 def _manual_totals(price: ManualProviderPrice, quantity: int | None) -> tuple[int, int]:

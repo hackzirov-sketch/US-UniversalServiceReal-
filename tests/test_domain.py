@@ -6,8 +6,6 @@ from sqlalchemy import func, select
 from app.db.enums import LedgerType, OrderStatus, ProviderState, ServiceType
 from app.db.models import LedgerEntry, Order, Payment, Provider, User
 from app.domain.state_machine import InvalidOrderTransition, transition
-from app.integrations.providers.myxvest.exceptions import MyxvestInvalidResponseError
-from app.integrations.providers.myxvest.mapper import map_service_type, require_dict
 from app.services.balance import (
     BalanceError,
     complete_order_funds,
@@ -39,7 +37,7 @@ def make_order(*, user_id: str, provider_id: str, status: OrderStatus) -> Order:
         expected_profit_som=300,
         quote_expires_at=now + timedelta(minutes=5),
         internal_status=status,
-        idempotency_key=f"ute:{now.timestamp()}:myxvest:submit:v1",
+        idempotency_key=f"ute:{now.timestamp()}:direct:submit:v1",
     )
 
 
@@ -47,7 +45,10 @@ async def seed_user_provider(sessions, *, balance: int = 2_000):
     async with sessions.begin() as session:
         user = User(telegram_id=10001, available_balance_som=balance)
         provider = Provider(
-            code="MYXVEST", name="Myxvest", enabled=True, status=ProviderState.AVAILABLE
+            code="DIRECT",
+            name="Direct fulfillment",
+            enabled=False,
+            status=ProviderState.DISABLED,
         )
         session.add_all([user, provider])
         await session.flush()
@@ -234,13 +235,3 @@ async def test_balance_invariant_failures_are_explicit(sessions) -> None:
 def test_invalid_state_transition_is_rejected() -> None:
     with pytest.raises(InvalidOrderTransition):
         transition(OrderStatus.DRAFT, OrderStatus.COMPLETED)
-
-
-def test_mapper_handles_live_actions_and_invalid_shapes() -> None:
-    assert map_service_type("buy_stars").value == "STARS"
-    assert map_service_type("buy_premium").value == "PREMIUM"
-    assert map_service_type("buy_gift").value == "GIFT"
-    with pytest.raises(MyxvestInvalidResponseError):
-        map_service_type("donat_buy")
-    with pytest.raises(MyxvestInvalidResponseError):
-        require_dict([])

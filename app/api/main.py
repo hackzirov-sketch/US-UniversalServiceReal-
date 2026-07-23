@@ -22,7 +22,6 @@ async def lifespan(_app: FastAPI):
             session,
             initial_admin_ids=settings.initial_admin_ids,
             superadmin_ids=settings.superadmin_ids,
-            myxvest_enabled=settings.myxvest_enabled,
         )
     telegram = None
     if settings.telegram_bot_token is not None:

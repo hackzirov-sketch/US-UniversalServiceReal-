@@ -30,8 +30,6 @@ from app.db.models import (
     ManualProviderPrice,
     Order,
     Payment,
-    Provider,
-    ProviderBalanceSnapshot,
     User,
 )
 from app.db.session import session_factory
@@ -48,13 +46,13 @@ USER_MENU_ROWS = (
 )
 
 ADMIN_MENU_ROWS = (
-    ("📊 Provider", "💰 Narxlar"),
+    ("💰 Narxlar",),
     ("🧾 To‘lov review", "📦 Buyurtmalar"),
     ("📜 Audit", "ℹ️ Yordam"),
 )
 
 SUPERADMIN_MENU_ROWS = (
-    ("📊 Provider", "💰 Narxlar"),
+    ("💰 Narxlar",),
     ("🧾 To‘lov review", "📦 Buyurtmalar"),
     ("💳 Asosiy karta", "👥 Adminlar"),
     ("🎨 Tugmalar dizayni",),
@@ -73,13 +71,13 @@ USER_MENU_CALLBACKS = (
 )
 
 ADMIN_MENU_CALLBACKS = (
-    ("admin:provider", "admin:pricing"),
+    ("admin:pricing",),
     ("admin:payments", "admin:orders"),
     ("admin:audit", "menu:help"),
 )
 
 SUPERADMIN_MENU_CALLBACKS = (
-    ("admin:provider", "admin:pricing"),
+    ("admin:pricing",),
     ("admin:payments", "admin:orders"),
     ("admin:card", "admin:admins"),
     ("admin:button_design",),
@@ -113,7 +111,6 @@ MAIN_BUTTON_EMOJI_KEYS = {
     "menu:orders": "orders",
     "menu:profile": "profile",
     "menu:help": "help",
-    "admin:provider": "provider",
     "admin:pricing": "pricing",
     "admin:payments": "payment_review",
     "admin:orders": "admin_orders",
@@ -390,7 +387,7 @@ def build_menu_router() -> Router:
 
     @router.message(F.text == "⭐ Stars olish")
     async def stars(message: Message) -> None:
-        price = await _active_manual_price("MYXVEST:STARS")
+        price = await _active_manual_price("DIRECT:STARS")
         await message.answer(
             _stars_catalog_text(price),
             reply_markup=stars_menu(
@@ -400,7 +397,7 @@ def build_menu_router() -> Router:
 
     @router.callback_query(F.data == "menu:stars")
     async def stars_callback(callback: CallbackQuery) -> None:
-        price = await _active_manual_price("MYXVEST:STARS")
+        price = await _active_manual_price("DIRECT:STARS")
         await _answer_callback(
             callback,
             _stars_catalog_text(price),
@@ -430,7 +427,7 @@ def build_menu_router() -> Router:
         if value is None or not 50 <= value <= 10_000:
             await message.answer("50 dan 10 000 gacha butun miqdor kiriting.")
             return
-        price = await _active_manual_price("MYXVEST:STARS")
+        price = await _active_manual_price("DIRECT:STARS")
         if price is None:
             await message.answer(
                 "Stars narxi vaqtincha mavjud emas.",
@@ -460,7 +457,7 @@ def build_menu_router() -> Router:
         if months is None:
             await callback.answer("Noto‘g‘ri paket", show_alert=True)
             return
-        price = await _active_manual_price(f"MYXVEST:PREMIUM:{months}")
+        price = await _active_manual_price(f"DIRECT:PREMIUM:{months}")
         if price is None:
             await _answer_callback(
                 callback,
@@ -525,7 +522,7 @@ def build_menu_router() -> Router:
                     reply_markup=insufficient_balance_keyboard(),
                 )
             return
-        if not get_settings().myxvest_purchase_enabled:
+        if not get_settings().direct_sales_enabled:
             await callback.answer("Xizmat xaridi vaqtincha yopiq", show_alert=True)
             return
         await callback.answer("Xarid oqimi hozircha mavjud emas", show_alert=True)
@@ -670,9 +667,6 @@ def build_menu_router() -> Router:
         if message.text == "💳 Asosiy karta" and is_superadmin:
             await message.answer("Asosiy karta boshqaruvi:", reply_markup=_card_entry_keyboard())
             return
-        if message.text == "📊 Provider":
-            await _show_provider_panel(message)
-            return
         if message.text == "💰 Narxlar":
             actor = await _pricing_actor(message.from_user.id)
             if not actor.can_manage_pricing:
@@ -698,7 +692,6 @@ def build_menu_router() -> Router:
         )
 
     admin_callbacks = {
-        "admin:provider": "provider",
         "admin:pricing": "pricing",
         "admin:payments": "payments",
         "admin:orders": "orders",
@@ -722,9 +715,7 @@ def build_menu_router() -> Router:
         source_message = callback.message
         with suppress(TelegramBadRequest):
             await source_message.delete()
-        if action == "provider":
-            await _show_provider_panel(source_message)
-        elif action == "pricing":
+        if action == "pricing":
             actor = await _pricing_actor(callback.from_user.id)
             if not actor.can_manage_pricing:
                 await source_message.answer("Narxlarni boshqarish huquqi berilmagan.")
@@ -751,7 +742,7 @@ def build_menu_router() -> Router:
 
 
 async def _show_stars_quote(callback: CallbackQuery, state: FSMContext, quantity: int) -> None:
-    price = await _active_manual_price("MYXVEST:STARS")
+    price = await _active_manual_price("DIRECT:STARS")
     if price is None:
         await _answer_callback(callback, "Stars narxi vaqtincha mavjud emas.", stars_menu())
         return
@@ -793,7 +784,7 @@ def _premium_button_text(months: int, price_som: int | None) -> str:
 async def _premium_menu() -> InlineKeyboardMarkup:
     prices: dict[int, int] = {}
     for months in (3, 6, 12):
-        price = await _active_manual_price(f"MYXVEST:PREMIUM:{months}")
+        price = await _active_manual_price(f"DIRECT:PREMIUM:{months}")
         if price is not None:
             prices[months] = price.sale_price_som
     return premium_menu(prices=prices)
@@ -828,62 +819,6 @@ async def _pricing_actor(telegram_id: int):
             telegram_id=telegram_id,
             superadmin_ids=get_settings().superadmin_ids,
         )
-
-
-async def _show_provider_panel(message: Message) -> None:
-    async with session_factory() as session:
-        provider = await session.scalar(select(Provider).where(Provider.code == "MYXVEST"))
-        if provider is None:
-            await message.answer("Provider sozlanmagan.", reply_markup=simple_internal_keyboard())
-            return
-        balance = await session.scalar(
-            select(ProviderBalanceSnapshot.balance_som)
-            .where(ProviderBalanceSnapshot.provider_id == provider.id)
-            .order_by(ProviderBalanceSnapshot.fetched_at.desc())
-            .limit(1)
-        )
-        waiting = await session.scalar(
-            select(func.count())
-            .select_from(Order)
-            .where(Order.internal_status.in_(_provider_waiting_statuses()))
-        )
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                inline_button(
-                    text="🔄 Balansni tekshirish",
-                    callback_data="provider:sync",
-                    style="primary",
-                    emoji_key="sync",
-                )
-            ],
-            [
-                inline_button(
-                    text="▶️ Navbatni ishga tushirish",
-                    callback_data="provider:dispatch",
-                    style="success",
-                    emoji_key="enable",
-                )
-            ],
-            navigation_keyboard(),
-        ]
-    )
-    await message.answer(
-        f"📊 Myxvest: {provider.status.value}\n"
-        f"Balans: {format_som(balance) if balance is not None else 'noma’lum'} so‘m\n"
-        f"Funding navbati: {waiting or 0}\n"
-        f"Oxirgi sync: {provider.last_balance_sync_at or 'hali bajarilmagan'}",
-        reply_markup=keyboard,
-    )
-
-
-def _provider_waiting_statuses():
-    from app.db.enums import OrderStatus
-
-    return (
-        OrderStatus.AWAITING_PROVIDER_FUNDING,
-        OrderStatus.INSUFFICIENT_PROVIDER_FUNDS,
-    )
 
 
 async def _show_payment_review_summary(message: Message) -> None:

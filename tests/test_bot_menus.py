@@ -1,7 +1,5 @@
 from types import SimpleNamespace
 
-import pytest
-
 from app.bot.menu import (
     USER_MENU_ROWS,
     _purchase_total,
@@ -17,7 +15,6 @@ from app.bot.menu import (
     stars_menu,
 )
 from app.db.enums import ServiceType
-from app.services.provider import ProviderWorkflow
 
 
 def _button_texts(markup) -> list[str]:
@@ -115,22 +112,6 @@ def test_unauthorized_user_cannot_open_admin_menu() -> None:
     customer_texts = _button_texts(main_menu(is_admin=False, is_superadmin=False))
     assert "📊 Provider" not in customer_texts
     assert "💳 Asosiy karta" not in customer_texts
-
-
-class _NeverPurchaseClient:
-    def __init__(self) -> None:
-        self.purchase_calls = 0
-
-    async def buy_stars(self, _request) -> None:
-        self.purchase_calls += 1
-        raise AssertionError("purchase API must not be called")
-
-
-@pytest.mark.asyncio
-async def test_purchase_gate_false_does_not_call_api(sessions) -> None:
-    client = _NeverPurchaseClient()
-    await ProviderWorkflow(sessions, client, purchase_enabled=False).submit_order("any-id")
-    assert client.purchase_calls == 0
 
 
 def test_callback_data_contains_actions_or_ids_but_no_secrets() -> None:
