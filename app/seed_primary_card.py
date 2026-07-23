@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 
 from sqlalchemy import select
 
@@ -24,7 +25,7 @@ async def seed_primary_card() -> None:
         raise RuntimeError("PAYMENT_CARD_ENCRYPTION_KEY is required")
     if not settings.superadmin_ids:
         raise RuntimeError("At least one SUPERADMIN_ID is required")
-    card_number = os.environ.get("PRIMARY_CARD_NUMBER", "")
+    card_number = re.sub(r"\D", "", os.environ.get("PRIMARY_CARD_NUMBER", ""))
     card_holder = os.environ.get("PRIMARY_CARD_HOLDER", "")
     if not card_number or not card_holder:
         raise RuntimeError("Primary card input is required")
